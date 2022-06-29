@@ -14,9 +14,9 @@ import (
 )
 
 var (
-	l               = log.New(os.Stdout, "[git-c] ", log.LstdFlags)
-	coAuthoredRegex = regexp.MustCompile(".*<[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?>")
-	help, add       bool
+	l                             = log.New(os.Stdout, "[git-c] ", log.LstdFlags)
+	coAuthoredRegex               = regexp.MustCompile(".*<[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?>")
+	help, add, printCommitMessage bool
 )
 
 type (
@@ -29,6 +29,13 @@ type (
 	}
 )
 
+func LookupEnvOrBool(key string, defaultVal bool) bool {
+	if val, ok := os.LookupEnv(key); ok {
+		return strings.ToLower(val) == "true"
+	}
+	return defaultVal
+}
+
 func main() {
 
 	flag.Parse()
@@ -37,6 +44,12 @@ func main() {
 		flag.Usage()
 		os.Exit(0)
 	}
+
+	flag.VisitAll(func(f *flag.Flag) {
+		if val, set := os.LookupEnv(strings.ToUpper(fmt.Sprintf("GIT_C_%s", f.Name))); set {
+			flag.Set(f.Name, val)
+		}
+	})
 
 	cmb := commitMessageBuilder{}
 
@@ -136,10 +149,19 @@ func main() {
 		os.Exit(1)
 	}
 
+	msg := cmb.String()
+
+	if printCommitMessage {
+		l.Println("resulting commit message:")
+		for _, s := range strings.Split(msg, " \n") {
+			l.Printf("  %s", s)
+		}
+	}
+
 	if add {
 		Git("add", "--all", ":/")
 	}
-	Git("commit", "-m", cmb.String())
+	Git("commit", "-m", msg)
 }
 
 func init() {
@@ -148,8 +170,9 @@ func init() {
 	if err != nil {
 		l.Fatalf("could not locate git: '%#v'", err)
 	}
-	flag.BoolVar(&help, "help", false, "show help")
-	flag.BoolVar(&add, "add", false, "add all changed files before committing")
+	flag.BoolVar(&help, "help", LookupEnvOrBool("GIT_C_HELP", false), "show help")
+	flag.BoolVar(&add, "add", LookupEnvOrBool("GIT_C_ADD", false), "add all changed files before committing")
+	flag.BoolVar(&printCommitMessage, "print", LookupEnvOrBool("GIT_C_PRINT", false), "print generated commit message")
 }
 
 var gitExecutable = ""
