@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path"
 	"strings"
 	"syscall"
 )
@@ -19,21 +20,26 @@ var (
 	gitExecutable                 string
 )
 
-func LookupEnvOrBool(key string, defaultVal bool) bool {
+// lookupEnvOrBool returns a default value or a value based on an env variable
+func lookupEnvOrBool(key string, defaultVal bool) bool {
 	if val, ok := os.LookupEnv(key); ok {
 		return strings.ToLower(val) == "true"
 	}
 	return defaultVal
 }
 
-func LookupEnvOrString(key string, defaultVal string) string {
+// lookupEnvOrString returns a default value or a value based on an env variable
+func lookupEnvOrString(key string, defaultVal string) string {
 	if val, ok := os.LookupEnv(key); ok {
 		return val
 	}
 	return defaultVal
 }
 
+// main you know
 func main() {
+	gitHookIntegration()
+
 	flag.Parse()
 	if help {
 		flag.Usage()
@@ -41,14 +47,29 @@ func main() {
 	}
 
 	if len(commitMessageFile) > 0 {
-		lintCommitMessage()
+		lintCommitMessage(commitMessageFile)
 	} else {
 		buildCommitMessage()
 	}
 }
 
-func lintCommitMessage() {
-	data, err := ioutil.ReadFile(commitMessageFile)
+// gitHookIntegration checks whether this is running as a git hook
+func gitHookIntegration() {
+	args := os.Args
+	_, name := path.Split(args[0])
+	if name == "commit=msg" {
+		if len(args) == 1 {
+			l.Print("not enough arguments provided")
+			os.Exit(1)
+		}
+		lintCommitMessage(args[1])
+		os.Exit(0)
+	}
+}
+
+// lintCommitMessage is used to line a message
+func lintCommitMessage(file string) {
+	data, err := ioutil.ReadFile(file)
 	if err != nil {
 		l.Printf("error reading commit message file: %s", err)
 		os.Exit(100)
@@ -61,6 +82,7 @@ func lintCommitMessage() {
 	}
 }
 
+// buildCommitMessage is used to build a commit message
 func buildCommitMessage() {
 	cmb := internal.CommitMessageBuilder{}
 	err := cmb.Build()
@@ -83,16 +105,17 @@ func buildCommitMessage() {
 	Git("commit", "-m", msg)
 }
 
+// init is known
 func init() {
 	var err error
 	gitExecutable, err = exec.LookPath("git")
 	if err != nil {
 		l.Fatalf("could not locate git: '%#v'", err)
 	}
-	flag.BoolVar(&help, "help", LookupEnvOrBool("GIT_C_HELP", false), "show help")
-	flag.BoolVar(&add, "add", LookupEnvOrBool("GIT_C_ADD", false), "add all changed files before committing")
-	flag.BoolVar(&printCommitMessage, "print", LookupEnvOrBool("GIT_C_PRINT", false), "print generated commit message")
-	flag.StringVar(&commitMessageFile, "lint", LookupEnvOrString("GIT_C_LINT", ""), "print generated commit message")
+	flag.BoolVar(&help, "help", lookupEnvOrBool("GIT_C_HELP", false), "show help")
+	flag.BoolVar(&add, "add", lookupEnvOrBool("GIT_C_ADD", false), "add all changed files before committing")
+	flag.BoolVar(&printCommitMessage, "print", lookupEnvOrBool("GIT_C_PRINT", false), "print generated commit message")
+	flag.StringVar(&commitMessageFile, "lint", lookupEnvOrString("GIT_C_LINT", ""), "print generated commit message")
 }
 
 // Git calls the system git in the project directory with specified arguments
