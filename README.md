@@ -11,6 +11,7 @@ Parameters:
     -help: show usage
     -add: add all unstaged files before committing
     -print: print resulting commit message
+    -lint: path to a commit-message
 
 ### Environment variables
 
