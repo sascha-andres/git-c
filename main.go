@@ -1,32 +1,22 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
-	"github.com/manifoldco/promptui"
+	"github.com/sascha-andres/gitc/internal"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
-	"regexp"
 	"strings"
 	"syscall"
 )
 
 var (
 	l                             = log.New(os.Stdout, "[git-c] ", log.LstdFlags)
-	coAuthoredRegex               = regexp.MustCompile(".*<[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?>")
 	help, add, printCommitMessage bool
-)
-
-type (
-	commitMessageBuilder struct {
-		Type      string
-		Issue     string
-		Message   string
-		Body      string
-		CoAuthors string
-	}
+	commitMessageFile             string
+	gitExecutable                 string
 )
 
 func LookupEnvOrBool(key string, defaultVal bool) bool {
@@ -36,119 +26,48 @@ func LookupEnvOrBool(key string, defaultVal bool) bool {
 	return defaultVal
 }
 
+func LookupEnvOrString(key string, defaultVal string) string {
+	if val, ok := os.LookupEnv(key); ok {
+		return val
+	}
+	return defaultVal
+}
+
 func main() {
-
 	flag.Parse()
-
 	if help {
 		flag.Usage()
 		os.Exit(0)
 	}
 
-	flag.VisitAll(func(f *flag.Flag) {
-		if val, set := os.LookupEnv(strings.ToUpper(fmt.Sprintf("GIT_C_%s", f.Name))); set {
-			flag.Set(f.Name, val)
-		}
-	})
-
-	cmb := commitMessageBuilder{}
-
-	promptType := promptui.Select{
-		Label: "Type of change",
-		Items: []string{
-			"feat",
-			"fix",
-			"doc",
-			"style",
-			"refactor",
-			"perf",
-			"test",
-			"chore",
-			"other",
-		},
+	if len(commitMessageFile) > 0 {
+		lintCommitMessage()
+	} else {
+		buildCommitMessage()
 	}
-	_, result, err := promptType.Run()
+}
+
+func lintCommitMessage() {
+	data, err := ioutil.ReadFile(commitMessageFile)
 	if err != nil {
-		l.Print(err)
-		os.Exit(1)
+		l.Printf("error reading commit message file: %s", err)
+		os.Exit(100)
 	}
-	cmb.Type = strings.TrimSpace(result)
-
-	prompt := promptui.Prompt{
-		Label: "Issue",
-	}
-	result, err = prompt.Run()
+	cml, _ := internal.NewCommitMessageLinter(string(data))
+	err = cml.Lint()
 	if err != nil {
-		l.Print(err)
+		l.Printf("linting failed: %s", err)
 		os.Exit(1)
 	}
-	cmb.Issue = result
+}
 
-	prompt.Label = "Message"
-	prompt.Validate = func(input string) error {
-		if len(input) > 50 {
-			return errors.New("message must not be longer than 50 characters")
-		}
-		if len(input) == 0 {
-			return errors.New("message must not be provided")
-		}
-		return nil
-	}
-	result, err = prompt.Run()
+func buildCommitMessage() {
+	cmb := internal.CommitMessageBuilder{}
+	err := cmb.Build()
 	if err != nil {
-		l.Print(err)
+		l.Printf("error creating commit message: %s", err)
 		os.Exit(1)
 	}
-	cmb.Message = result
-
-	prompt.Label = "Body, empty to end (repeated)"
-	prompt.Validate = func(input string) error {
-		if len(input) <= 72 {
-			return nil
-		}
-		return errors.New("no line must be longer than 72 characters")
-	}
-	result = "-"
-	for {
-		result, err = prompt.Run()
-		if len(result) == 0 {
-			break
-		}
-		if cmb.Body == "" {
-			cmb.Body = result
-		} else {
-			cmb.Body = fmt.Sprintf("%s\n%s", cmb.Body, result)
-		}
-	}
-
-	prompt.Label = "Co-Authored-By, empty to end (repeated)"
-	prompt.Validate = func(input string) error {
-		if len(input) == 0 {
-			return nil
-		}
-		if !coAuthoredRegex.MatchString(input) {
-			return errors.New("please use the format [another-name <another-name@example.com>]")
-		}
-		return nil
-	}
-	result = "-"
-	for {
-		result, err = prompt.Run()
-		if len(result) == 0 {
-			break
-		}
-		if cmb.CoAuthors == "" {
-			cmb.CoAuthors = result
-		} else {
-			cmb.CoAuthors = fmt.Sprintf("%s\n%s", cmb.CoAuthors, result)
-		}
-	}
-
-	if strings.TrimSpace(cmb.Type) == "" {
-		l.Print("you need to provide a commit type")
-		os.Exit(1)
-	}
-
 	msg := cmb.String()
 
 	if printCommitMessage {
@@ -173,9 +92,8 @@ func init() {
 	flag.BoolVar(&help, "help", LookupEnvOrBool("GIT_C_HELP", false), "show help")
 	flag.BoolVar(&add, "add", LookupEnvOrBool("GIT_C_ADD", false), "add all changed files before committing")
 	flag.BoolVar(&printCommitMessage, "print", LookupEnvOrBool("GIT_C_PRINT", false), "print generated commit message")
+	flag.StringVar(&commitMessageFile, "lint", LookupEnvOrString("GIT_C_LINT", ""), "print generated commit message")
 }
-
-var gitExecutable = ""
 
 // Git calls the system git in the project directory with specified arguments
 func Git(args ...string) (int, error) {
@@ -207,19 +125,4 @@ func StartAndWait(command *exec.Cmd) (int, error) {
 		return -1, fmt.Errorf("error waiting for command: %w", err)
 	}
 	return 0, nil
-}
-
-func (cmb commitMessageBuilder) String() string {
-	result := cmb.Type
-	if cmb.Issue != "" {
-		result = fmt.Sprintf("%s(%s)", result, cmb.Issue)
-	}
-	result = fmt.Sprintf("%s: %s", result, cmb.Message)
-	if cmb.Body != "" {
-		result = fmt.Sprintf("%s\n\n%s", result, cmb.Body)
-	}
-	if cmb.CoAuthors != "" {
-		result = fmt.Sprintf("%s\n\n%s", result, cmb.CoAuthors)
-	}
-	return result
 }

@@ -1,4 +1,4 @@
-module git-c
+module github.com/sascha-andres/gitc
 
 go 1.18
 
