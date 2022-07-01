@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/sascha-andres/gitc/internal"
 	"io/ioutil"
 	"log"
 	"os"
@@ -11,6 +10,8 @@ import (
 	"path"
 	"strings"
 	"syscall"
+
+	"github.com/sascha-andres/gitc/internal"
 )
 
 var (
@@ -57,7 +58,7 @@ func main() {
 func gitHookIntegration() {
 	args := os.Args
 	_, name := path.Split(args[0])
-	if name == "commit=msg" {
+	if name == "commit-msg" {
 		if len(args) == 1 {
 			l.Print("not enough arguments provided")
 			os.Exit(1)
