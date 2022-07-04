@@ -46,7 +46,6 @@ func TestBuilder(t *testing.T) {
 	for s, testCase := range builderTestCases {
 		t.Run(s, func(t *testing.T) {
 			cml, _ := NewCommitMessageLinter(testCase.cmb.String())
-			cml.logger.Println(testCase.cmb.String())
 			err := cml.Lint()
 			if err != testCase.err {
 				t.Fail()
