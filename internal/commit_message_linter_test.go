@@ -23,17 +23,9 @@ var lintTestCases = map[string]struct {
 		message: "abc: test",
 		err:     ErrSubjectLineFormatWrong,
 	},
-	"empty subject line": {
-		message: "\n\nbody",
-		err:     ErrEmptySubjectLine,
-	},
 	"subject line too long": {
 		message: "feat: 012345678901234567890123456789012345678901234567891",
 		err:     ErrSubjectLineTooLong,
-	},
-	"missing body": {
-		message: "feat: a\n",
-		err:     ErrMissingBody,
 	},
 	"body line too long (one liner)": {
 		message: "feat: a\n\n01234567890123456789012345678901234567890123456789012345678901234567890123456789",
