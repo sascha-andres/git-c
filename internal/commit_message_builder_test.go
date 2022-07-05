@@ -56,6 +56,7 @@ func TestBuilder(t *testing.T) {
 	}
 }
 
+// TestSubjectOnly is a testcase for whitespace suffix
 func TestSubjectOnly(t *testing.T) {
 	cml, _ := NewCommitMessageLinter(`feat: bla
 `)
