@@ -35,7 +35,7 @@ type (
 
 // NewCommitMessageLinter creates a new linter
 func NewCommitMessageLinter(msg string) (*CommitMessageLinter, error) {
-	return &CommitMessageLinter{message: msg, logger: log.New(os.Stdout, "[cml] ", log.LstdFlags|log.LUTC)}, nil
+	return &CommitMessageLinter{message: strings.TrimSpace(msg), logger: log.New(os.Stdout, "[cml] ", log.LstdFlags|log.LUTC)}, nil
 }
 
 // Lint runs the linter

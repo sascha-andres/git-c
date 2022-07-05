@@ -1,6 +1,8 @@
 package internal
 
-import "testing"
+import (
+	"testing"
+)
 
 // builderTestCases contains a list of test cases for the builder
 var builderTestCases = map[string]struct {
@@ -51,5 +53,15 @@ func TestBuilder(t *testing.T) {
 				t.Fail()
 			}
 		})
+	}
+}
+
+func TestSubjectOnly(t *testing.T) {
+	cml, _ := NewCommitMessageLinter(`feat: bla
+`)
+	err := cml.Lint()
+	if err != nil {
+		t.Errorf("%s", err)
+		t.Fail()
 	}
 }
