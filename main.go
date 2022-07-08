@@ -15,10 +15,10 @@ import (
 )
 
 var (
-	l                             = log.New(os.Stdout, "[git-c] ", log.LstdFlags)
-	help, add, printCommitMessage bool
-	commitMessageFile             string
-	gitExecutable                 string
+	l                                   = log.New(os.Stdout, "[git-c] ", log.LstdFlags)
+	help, add, printCommitMessage, push bool
+	commitMessageFile                   string
+	gitExecutable                       string
 )
 
 // lookupEnvOrBool returns a default value or a value based on an env variable
@@ -104,6 +104,9 @@ func buildCommitMessage() {
 		Git("add", "--all", ":/")
 	}
 	Git("commit", "-m", msg)
+	if push {
+		Git("push")
+	}
 }
 
 // init is known
@@ -115,6 +118,7 @@ func init() {
 	}
 	flag.BoolVar(&help, "help", lookupEnvOrBool("GIT_C_HELP", false), "show help")
 	flag.BoolVar(&add, "add", lookupEnvOrBool("GIT_C_ADD", false), "add all changed files before committing")
+	flag.BoolVar(&push, "push", lookupEnvOrBool("GIT_C_PUSH", false), "automatically push to default remote")
 	flag.BoolVar(&printCommitMessage, "print", lookupEnvOrBool("GIT_C_PRINT", false), "print generated commit message")
 	flag.StringVar(&commitMessageFile, "lint", lookupEnvOrString("GIT_C_LINT", ""), "print generated commit message")
 }
