@@ -48,17 +48,13 @@ func (cmb *CommitMessageBuilder) Build() error {
 	}
 	cmb.Type = strings.TrimSpace(result)
 
-	prompt := promptui.Prompt{
-		Label: "Issue",
-	}
-	result, err = prompt.Run()
+	result, err = promptText("Issue (scope)", nil)
 	if err != nil {
 		return err
 	}
 	cmb.Issue = result
 
-	prompt.Label = "Message"
-	prompt.Validate = func(input string) error {
+	result, err = promptText("Message", func(input string) error {
 		if len(input) > 50 {
 			return errors.New("message must not be longer than 50 characters")
 		}
@@ -66,23 +62,23 @@ func (cmb *CommitMessageBuilder) Build() error {
 			return errors.New("message must not be provided")
 		}
 		return nil
-	}
-	result, err = prompt.Run()
+	})
 	if err != nil {
 		return err
 	}
 	cmb.Message = result
 
-	prompt.Label = "Body, empty to end (repeated)"
-	prompt.Validate = func(input string) error {
-		if len(input) <= 72 {
-			return nil
-		}
-		return errors.New("no line must be longer than 72 characters")
-	}
 	result = "-"
 	for {
-		result, err = prompt.Run()
+		result, err = promptText("Body, empty to end (repeated)", func(input string) error {
+			if len(input) <= 72 {
+				return nil
+			}
+			return errors.New("no line must be longer than 72 characters")
+		})
+		if err != nil {
+			return err
+		}
 		if len(result) == 0 {
 			break
 		}
@@ -93,19 +89,20 @@ func (cmb *CommitMessageBuilder) Build() error {
 		}
 	}
 
-	prompt.Label = "Co-Authored-By, empty to end (repeated)"
-	prompt.Validate = func(input string) error {
-		if len(input) == 0 {
-			return nil
-		}
-		if !coAuthoredRegex.MatchString(input) {
-			return errors.New("please use the format [another-name <another-name@example.com>]")
-		}
-		return nil
-	}
 	result = "-"
 	for {
-		result, err = prompt.Run()
+		result, err = promptText("Co-Authored-By, empty to end (repeated)", func(input string) error {
+			if len(input) == 0 {
+				return nil
+			}
+			if !coAuthoredRegex.MatchString(input) {
+				return errors.New("please use the format [another-name <another-name@example.com>]")
+			}
+			return nil
+		})
+		if err != nil {
+			return err
+		}
 		if len(result) == 0 {
 			break
 		}
@@ -117,6 +114,17 @@ func (cmb *CommitMessageBuilder) Build() error {
 	}
 
 	return nil
+}
+
+// promptText runs a textual prompt
+func promptText(label string, val func(string) error) (string, error) {
+	prompt := promptui.Prompt{
+		Label: label,
+	}
+	if nil != val {
+		prompt.Validate = val
+	}
+	return prompt.Run()
 }
 
 // String implements the stringer interface
