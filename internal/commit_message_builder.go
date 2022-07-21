@@ -28,21 +28,17 @@ type (
 
 // Build queries for information to create a commit message
 func (cmb *CommitMessageBuilder) Build() error {
-	promptType := promptui.Select{
-		Label: "Type of change",
-		Items: []string{
-			"feat",
-			"fix",
-			"doc",
-			"chore",
-			"refactor",
-			"test",
-			"style",
-			"perf",
-			"other",
-		},
-	}
-	_, result, err := promptType.Run()
+	result, err := promptSelect("Type of change", []string{
+		"feat",
+		"fix",
+		"doc",
+		"chore",
+		"refactor",
+		"test",
+		"style",
+		"perf",
+		"other",
+	})
 	if err != nil {
 		return err
 	}
@@ -114,6 +110,16 @@ func (cmb *CommitMessageBuilder) Build() error {
 	}
 
 	return nil
+}
+
+// promptSelect runs a select prompt
+func promptSelect(label string, items []string) (string, error) {
+	prompt := promptui.Select{
+		Label: label,
+		Items: items,
+	}
+	_, result, err := prompt.Run()
+	return result, err
 }
 
 // promptText runs a textual prompt
