@@ -18,7 +18,7 @@ var (
 	ErrCoAuthoredFormatWrong  = errors.New("co authored line format wrong (Co-authored-by: name <email>)")
 	ErrNoLineAfterCoAuthored  = errors.New("no content after co-authored-by lines allowed")
 
-	subjectRegex      = regexp.MustCompile("(?P<type>feat|fix|doc|chore|refactor|test|style|perf|other)(?P<issue>\\([^)]+\\))?: (?P<message>.*)")
+	subjectRegex      = regexp.MustCompile("(?P<type>feat|fix|doc|chore|refactor|test|style|perf|other)(?P<issue>\\([^)]+\\))?:\\W(?P<message>.+)")
 	coAuthoredByRegex = regexp.MustCompile("^Co-authored-by: (?P<name>.*) <(?P<mail>[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)>$")
 )
 
