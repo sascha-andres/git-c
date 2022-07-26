@@ -1,8 +1,8 @@
 package main
 
 import (
-	"flag"
 	"fmt"
+	"github.com/sascha-andres/flag"
 	"io/ioutil"
 	"log"
 	"os"
@@ -20,22 +20,6 @@ var (
 	commitMessageFile                   string
 	gitExecutable                       string
 )
-
-// lookupEnvOrBool returns a default value or a value based on an env variable
-func lookupEnvOrBool(key string, defaultVal bool) bool {
-	if val, ok := os.LookupEnv(key); ok {
-		return strings.ToLower(val) == "true"
-	}
-	return defaultVal
-}
-
-// lookupEnvOrString returns a default value or a value based on an env variable
-func lookupEnvOrString(key string, defaultVal string) string {
-	if val, ok := os.LookupEnv(key); ok {
-		return val
-	}
-	return defaultVal
-}
 
 // main you know
 func main() {
@@ -116,11 +100,12 @@ func init() {
 	if err != nil {
 		l.Fatalf("could not locate git: '%#v'", err)
 	}
-	flag.BoolVar(&help, "help", lookupEnvOrBool("GIT_C_HELP", false), "show help")
-	flag.BoolVar(&add, "add", lookupEnvOrBool("GIT_C_ADD", false), "add all changed files before committing")
-	flag.BoolVar(&push, "push", lookupEnvOrBool("GIT_C_PUSH", false), "automatically push to default remote")
-	flag.BoolVar(&printCommitMessage, "print", lookupEnvOrBool("GIT_C_PRINT", false), "print generated commit message")
-	flag.StringVar(&commitMessageFile, "lint", lookupEnvOrString("GIT_C_LINT", ""), "print generated commit message")
+	flag.SetEnvPrefix("GIT_C")
+	flag.BoolVar(&help, "help", false, "show help")
+	flag.BoolVar(&add, "add", false, "add all changed files before committing")
+	flag.BoolVar(&push, "push", false, "automatically push to default remote")
+	flag.BoolVar(&printCommitMessage, "print", false, "print generated commit message")
+	flag.StringVar(&commitMessageFile, "lint", "", "print generated commit message")
 }
 
 // Git calls the system git in the project directory with specified arguments
