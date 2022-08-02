@@ -15,10 +15,10 @@ import (
 )
 
 var (
-	l                                   = log.New(os.Stdout, "[git-c] ", log.LstdFlags)
-	help, add, printCommitMessage, push bool
-	commitMessageFile                   string
-	gitExecutable                       string
+	l                                            = log.New(os.Stdout, "[git-c] ", log.LstdFlags)
+	help, add, printCommitMessage, push, verbose bool
+	commitMessageFile                            string
+	gitExecutable                                string
 )
 
 // main you know
@@ -70,12 +70,18 @@ func lintCommitMessage(file string) {
 // buildCommitMessage is used to build a commit message
 func buildCommitMessage() {
 	cmb := internal.CommitMessageBuilder{}
+	if verbose {
+		l.Print("asking for data")
+	}
 	err := cmb.Build()
 	if err != nil {
 		l.Printf("error creating commit message: %s", err)
 		os.Exit(1)
 	}
 	msg := cmb.String()
+	if verbose {
+		l.Print("commit message created")
+	}
 
 	if printCommitMessage {
 		l.Println("resulting commit message:")
@@ -85,10 +91,19 @@ func buildCommitMessage() {
 	}
 
 	if add {
+		if verbose {
+			l.Print("stage files")
+		}
 		Git("add", "--all", ":/")
+	}
+	if verbose {
+		l.Print("commit")
 	}
 	Git("commit", "-m", msg)
 	if push {
+		if verbose {
+			l.Print("push")
+		}
 		Git("push")
 	}
 }
@@ -102,6 +117,7 @@ func init() {
 	}
 	flag.SetEnvPrefix("GIT_C")
 	flag.BoolVar(&help, "help", false, "show help")
+	flag.BoolVar(&verbose, "verbose", false, "print more information on execution")
 	flag.BoolVar(&add, "add", false, "add all changed files before committing")
 	flag.BoolVar(&push, "push", false, "automatically push to default remote")
 	flag.BoolVar(&printCommitMessage, "print", false, "print generated commit message")
