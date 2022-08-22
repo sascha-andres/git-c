@@ -14,7 +14,6 @@ import (
 )
 
 var (
-	l                                            = log.New(os.Stdout, "[git-c] ", log.LstdFlags)
 	help, add, printCommitMessage, push, verbose bool
 	subjectLineLength, bodyLineLength            int
 	commitMessageFile                            string
@@ -26,6 +25,10 @@ func main() {
 	gitHookIntegration()
 
 	flag.Parse()
+	if verbose {
+		log.SetFlags(log.LstdFlags | log.LUTC | log.Lshortfile)
+	}
+
 	if help {
 		flag.Usage()
 		os.Exit(0)
@@ -36,7 +39,7 @@ func main() {
 	} else {
 		err := buildCommitMessage()
 		if err != nil {
-			l.Printf("%s", err)
+			log.Printf("%s", err)
 			os.Exit(1)
 		}
 	}
@@ -48,7 +51,7 @@ func gitHookIntegration() {
 	_, name := path.Split(args[0])
 	if name == "commit-msg" {
 		if len(args) == 1 {
-			l.Print("not enough arguments provided")
+			log.Print("not enough arguments provided")
 			os.Exit(1)
 		}
 		lintCommitMessage(args[1])
@@ -60,13 +63,13 @@ func gitHookIntegration() {
 func lintCommitMessage(file string) {
 	data, err := os.ReadFile(file)
 	if err != nil {
-		l.Printf("error reading commit message file: %s", err)
+		log.Printf("error reading commit message file: %s", err)
 		os.Exit(100)
 	}
 	cml, _ := linter.NewCommitMessageLinter(string(data), linter.WithSubjectLineLength(subjectLineLength), linter.WithBodyLineLength(bodyLineLength))
 	err = cml.Lint()
 	if err != nil {
-		l.Printf("linting failed: %s", err)
+		log.Printf("linting failed: %s", err)
 		os.Exit(1)
 	}
 }
@@ -78,7 +81,7 @@ func buildCommitMessage() error {
 		return fmt.Errorf("error creating builder: %w", err)
 	}
 	if verbose {
-		l.Print("asking for data")
+		log.Print("asking for data")
 	}
 	err = cmb.Build()
 	if err != nil {
@@ -86,19 +89,19 @@ func buildCommitMessage() error {
 	}
 	msg := cmb.String()
 	if verbose {
-		l.Print("commit message created")
+		log.Print("commit message created")
 	}
 
 	if printCommitMessage {
-		l.Println("resulting commit message:")
+		log.Println("resulting commit message:")
 		for _, s := range strings.Split(msg, " \n") {
-			l.Printf("  %s", s)
+			log.Printf("  %s", s)
 		}
 	}
 
 	if add {
 		if verbose {
-			l.Print("stage files")
+			log.Print("stage files")
 		}
 		_, err = Git("add", "--all", ":/")
 		if err != nil {
@@ -106,7 +109,7 @@ func buildCommitMessage() error {
 		}
 	}
 	if verbose {
-		l.Print("commit")
+		log.Print("commit")
 	}
 	_, err = Git("commit", "-m", msg)
 	if err != nil {
@@ -114,7 +117,7 @@ func buildCommitMessage() error {
 	}
 	if push {
 		if verbose {
-			l.Print("push")
+			log.Print("push")
 		}
 		_, err = Git("push")
 		if err != nil {
@@ -126,10 +129,13 @@ func buildCommitMessage() error {
 
 // init is known
 func init() {
+	log.SetPrefix("[git-c] ")
+	log.SetFlags(log.LstdFlags | log.LUTC)
+
 	var err error
 	gitExecutable, err = exec.LookPath("git")
 	if err != nil {
-		l.Fatalf("could not locate git: '%#v'", err)
+		log.Fatalf("could not locate git: '%#v'", err)
 	}
 	flag.SetEnvPrefix("GIT_C")
 	flag.BoolVar(&help, "help", false, "show help")

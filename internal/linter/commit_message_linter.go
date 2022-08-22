@@ -2,8 +2,6 @@ package linter
 
 import (
 	"errors"
-	"log"
-	"os"
 	"regexp"
 	"strings"
 )
@@ -27,8 +25,6 @@ type (
 	CommitMessageLinter struct {
 		// message is the commit message
 		message string
-		// logger is used to write out some messages
-		logger *log.Logger
 		// BodyLineLength restricts the length of a body line
 		BodyLineLength int
 		// SubjectLineLength restricts the length of the subject line
@@ -55,7 +51,7 @@ func WithSubjectLineLength(length int) CommitMessageLinterOption {
 
 // NewCommitMessageLinter creates a new linter
 func NewCommitMessageLinter(msg string, options ...CommitMessageLinterOption) (*CommitMessageLinter, error) {
-	cml := &CommitMessageLinter{message: strings.TrimSpace(msg), logger: log.New(os.Stdout, "[cml] ", log.LstdFlags|log.LUTC)}
+	cml := &CommitMessageLinter{message: strings.TrimSpace(msg)}
 	for i := range options {
 		options[i](cml)
 	}
