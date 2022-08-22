@@ -1,8 +1,0 @@
-# git-c specific env vars
-export GIT_C_ADD=true
-export GIT_C_PRINT=true
-export GIT_C_VERBOSE=true
-
-# git specific env vars
-export GIT_COMMITTER_EMAIL="sascha.andres@outlook.com"
-export GIT_AUTHOR_EMAIL="sascha.andres@outlook.com"
