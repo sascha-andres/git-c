@@ -103,7 +103,7 @@ func (cmb *CommitMessageBuilder) Build() error {
 			break
 		}
 		if cmb.CoAuthors == "" {
-			cmb.CoAuthors = result
+			cmb.CoAuthors = fmt.Sprintf("\nCo-authored-by: %s", result)
 		} else {
 			cmb.CoAuthors = fmt.Sprintf("%s\nCo-authored-by: %s", cmb.CoAuthors, result)
 		}

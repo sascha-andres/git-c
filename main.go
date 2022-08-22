@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"github.com/sascha-andres/flag"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -54,7 +53,7 @@ func gitHookIntegration() {
 
 // lintCommitMessage is used to line a message
 func lintCommitMessage(file string) {
-	data, err := ioutil.ReadFile(file)
+	data, err := os.ReadFile(file)
 	if err != nil {
 		l.Printf("error reading commit message file: %s", err)
 		os.Exit(100)
@@ -94,17 +93,26 @@ func buildCommitMessage() {
 		if verbose {
 			l.Print("stage files")
 		}
-		Git("add", "--all", ":/")
+		_, err = Git("add", "--all", ":/")
+		if err != nil {
+			l.Fatalf("could not add all changes: %s", err)
+		}
 	}
 	if verbose {
 		l.Print("commit")
 	}
-	Git("commit", "-m", msg)
+	_, err = Git("commit", "-m", msg)
+	if err != nil {
+		l.Fatalf("could not commit: %s", err)
+	}
 	if push {
 		if verbose {
 			l.Print("push")
 		}
-		Git("push")
+		_, err = Git("push")
+		if err != nil {
+			l.Fatalf("could not push changes: %s", err)
+		}
 	}
 }
 
