@@ -1,4 +1,4 @@
-package internal
+package builder
 
 import (
 	"errors"
@@ -8,7 +8,24 @@ import (
 	"strings"
 )
 
-var coAuthoredRegex = regexp.MustCompile(".*<[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?>")
+var (
+	coAuthoredRegex = regexp.MustCompile(".*<[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?>")
+	types           = []string{
+		"feat",
+		"fix",
+		"doc",
+		"chore",
+		"refactor",
+		"test",
+		"style",
+		"perf",
+		"other",
+	}
+)
+
+const (
+	CoAuthoredByPrefix = "Co-authored-by"
+)
 
 type (
 	// CommitMessageBuilder is used to create a conventional git commit message
@@ -23,22 +40,42 @@ type (
 		Body string
 		// CoAuthors feature a list of other developers who contributed to the code
 		CoAuthors string
+		// BodyLineLength restricts the length of a body line
+		BodyLineLength int
+		// SubjectLineLength restricts the length of the subject line
+		SubjectLineLength int
 	}
+
+	// CommitMessageBuilderOption can be used to set options on commit message builder
+	CommitMessageBuilderOption func(cmb *CommitMessageBuilder)
 )
+
+// WithBodyLineLength allows setting the maximum length of a body line
+func WithBodyLineLength(length int) CommitMessageBuilderOption {
+	return func(cmb *CommitMessageBuilder) {
+		cmb.BodyLineLength = length
+	}
+}
+
+// WithSubjectLineLength allows setting the maximum length of a body line
+func WithSubjectLineLength(length int) CommitMessageBuilderOption {
+	return func(cmb *CommitMessageBuilder) {
+		cmb.SubjectLineLength = length
+	}
+}
+
+// NewCommitMessageBuilder returns a new commit message builder
+func NewCommitMessageBuilder(options ...CommitMessageBuilderOption) (*CommitMessageBuilder, error) {
+	cmb := &CommitMessageBuilder{}
+	for i := range options {
+		options[i](cmb)
+	}
+	return cmb, nil
+}
 
 // Build queries for information to create a commit message
 func (cmb *CommitMessageBuilder) Build() error {
-	result, err := promptSelect("Type of change", []string{
-		"feat",
-		"fix",
-		"doc",
-		"chore",
-		"refactor",
-		"test",
-		"style",
-		"perf",
-		"other",
-	})
+	result, err := promptSelect("Type of change", types)
 	if err != nil {
 		return err
 	}
@@ -50,9 +87,13 @@ func (cmb *CommitMessageBuilder) Build() error {
 	}
 	cmb.Issue = result
 
+	maxLineLength := 50
+	if cmb.BodyLineLength != 0 {
+		maxLineLength = cmb.SubjectLineLength
+	}
 	result, err = promptText("Message", func(input string) error {
-		if len(input) > 50 {
-			return errors.New("message must not be longer than 50 characters")
+		if len(input) > maxLineLength {
+			return errors.New(fmt.Sprintf("message must not be longer than %d characters", maxLineLength))
 		}
 		if len(input) == 0 {
 			return errors.New("message must not be provided")
@@ -65,12 +106,16 @@ func (cmb *CommitMessageBuilder) Build() error {
 	cmb.Message = result
 
 	result = "-"
+	maxLineLength = 72
+	if cmb.BodyLineLength != 0 {
+		maxLineLength = cmb.BodyLineLength
+	}
 	for {
 		result, err = promptText("Body, empty to end (repeated)", func(input string) error {
-			if len(input) <= 72 {
+			if len(input) <= maxLineLength {
 				return nil
 			}
-			return errors.New("no line must be longer than 72 characters")
+			return errors.New(fmt.Sprintf("no line must be longer than %d characters", maxLineLength))
 		})
 		if err != nil {
 			return err
@@ -103,9 +148,9 @@ func (cmb *CommitMessageBuilder) Build() error {
 			break
 		}
 		if cmb.CoAuthors == "" {
-			cmb.CoAuthors = fmt.Sprintf("\nCo-authored-by: %s", result)
+			cmb.CoAuthors = fmt.Sprintf("\n%s: %s", CoAuthoredByPrefix, result)
 		} else {
-			cmb.CoAuthors = fmt.Sprintf("%s\nCo-authored-by: %s", cmb.CoAuthors, result)
+			cmb.CoAuthors = fmt.Sprintf("%s\n%s: %s", cmb.CoAuthors, CoAuthoredByPrefix, result)
 		}
 	}
 
@@ -134,7 +179,7 @@ func promptText(label string, val func(string) error) (string, error) {
 }
 
 // String implements the stringer interface
-func (cmb CommitMessageBuilder) String() string {
+func (cmb *CommitMessageBuilder) String() string {
 	result := cmb.Type
 	if cmb.Issue != "" {
 		result = fmt.Sprintf("%s(%s)", result, cmb.Issue)

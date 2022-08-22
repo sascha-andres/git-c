@@ -3,19 +3,20 @@ package main
 import (
 	"fmt"
 	"github.com/sascha-andres/flag"
+	"github.com/sascha-andres/gitc/internal/builder"
+	"github.com/sascha-andres/gitc/internal/linter"
 	"log"
 	"os"
 	"os/exec"
 	"path"
 	"strings"
 	"syscall"
-
-	"github.com/sascha-andres/gitc/internal"
 )
 
 var (
 	l                                            = log.New(os.Stdout, "[git-c] ", log.LstdFlags)
 	help, add, printCommitMessage, push, verbose bool
+	subjectLineLength, bodyLineLength            int
 	commitMessageFile                            string
 	gitExecutable                                string
 )
@@ -33,7 +34,11 @@ func main() {
 	if len(commitMessageFile) > 0 {
 		lintCommitMessage(commitMessageFile)
 	} else {
-		buildCommitMessage()
+		err := buildCommitMessage()
+		if err != nil {
+			l.Printf("%s", err)
+			os.Exit(1)
+		}
 	}
 }
 
@@ -58,7 +63,7 @@ func lintCommitMessage(file string) {
 		l.Printf("error reading commit message file: %s", err)
 		os.Exit(100)
 	}
-	cml, _ := internal.NewCommitMessageLinter(string(data))
+	cml, _ := linter.NewCommitMessageLinter(string(data), linter.WithSubjectLineLength(subjectLineLength), linter.WithBodyLineLength(bodyLineLength))
 	err = cml.Lint()
 	if err != nil {
 		l.Printf("linting failed: %s", err)
@@ -67,15 +72,17 @@ func lintCommitMessage(file string) {
 }
 
 // buildCommitMessage is used to build a commit message
-func buildCommitMessage() {
-	cmb := internal.CommitMessageBuilder{}
+func buildCommitMessage() error {
+	cmb, err := builder.NewCommitMessageBuilder(builder.WithBodyLineLength(bodyLineLength), builder.WithSubjectLineLength(subjectLineLength))
+	if err != nil {
+		return fmt.Errorf("error creating builder: %w", err)
+	}
 	if verbose {
 		l.Print("asking for data")
 	}
-	err := cmb.Build()
+	err = cmb.Build()
 	if err != nil {
-		l.Printf("error creating commit message: %s", err)
-		os.Exit(1)
+		return fmt.Errorf("error creating commit message: %w", err)
 	}
 	msg := cmb.String()
 	if verbose {
@@ -95,7 +102,7 @@ func buildCommitMessage() {
 		}
 		_, err = Git("add", "--all", ":/")
 		if err != nil {
-			l.Fatalf("could not add all changes: %s", err)
+			return fmt.Errorf("could not add all changes: %s", err)
 		}
 	}
 	if verbose {
@@ -103,7 +110,7 @@ func buildCommitMessage() {
 	}
 	_, err = Git("commit", "-m", msg)
 	if err != nil {
-		l.Fatalf("could not commit: %s", err)
+		return fmt.Errorf("could not commit: %s", err)
 	}
 	if push {
 		if verbose {
@@ -111,9 +118,10 @@ func buildCommitMessage() {
 		}
 		_, err = Git("push")
 		if err != nil {
-			l.Fatalf("could not push changes: %s", err)
+			return fmt.Errorf("could not push changes: %s", err)
 		}
 	}
+	return nil
 }
 
 // init is known
@@ -130,6 +138,8 @@ func init() {
 	flag.BoolVar(&push, "push", false, "automatically push to default remote")
 	flag.BoolVar(&printCommitMessage, "print", false, "print generated commit message")
 	flag.StringVar(&commitMessageFile, "lint", "", "print generated commit message")
+	flag.IntVar(&subjectLineLength, "subject-line-length", 50, "max length of subject line")
+	flag.IntVar(&bodyLineLength, "body-line-length", 72, "max length of a body line")
 }
 
 // Git calls the system git in the project directory with specified arguments

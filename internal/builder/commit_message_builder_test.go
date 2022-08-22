@@ -1,6 +1,7 @@
-package internal
+package builder
 
 import (
+	"github.com/sascha-andres/gitc/internal/linter"
 	"testing"
 )
 
@@ -47,7 +48,7 @@ var builderTestCases = map[string]struct {
 func TestBuilder(t *testing.T) {
 	for s, testCase := range builderTestCases {
 		t.Run(s, func(t *testing.T) {
-			cml, _ := NewCommitMessageLinter(testCase.cmb.String())
+			cml, _ := linter.NewCommitMessageLinter(testCase.cmb.String())
 			err := cml.Lint()
 			if err != testCase.err {
 				t.Fail()
@@ -58,7 +59,7 @@ func TestBuilder(t *testing.T) {
 
 // TestSubjectOnly is a testcase for whitespace suffix
 func TestSubjectOnly(t *testing.T) {
-	cml, _ := NewCommitMessageLinter(`feat: bla
+	cml, _ := linter.NewCommitMessageLinter(`feat: bla
 `)
 	err := cml.Lint()
 	if err != nil {

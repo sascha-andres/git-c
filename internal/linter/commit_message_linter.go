@@ -1,4 +1,4 @@
-package internal
+package linter
 
 import (
 	"errors"
@@ -27,15 +27,39 @@ type (
 	CommitMessageLinter struct {
 		// message is the commit message
 		message string
-
 		// logger is used to write out some messages
 		logger *log.Logger
+		// BodyLineLength restricts the length of a body line
+		BodyLineLength int
+		// SubjectLineLength restricts the length of the subject line
+		SubjectLineLength int
 	}
+
+	// CommitMessageLinterOption can be used to set options on commit message builder
+	CommitMessageLinterOption func(cml *CommitMessageLinter)
 )
 
+// WithBodyLineLength allows setting the maximum length of a body line
+func WithBodyLineLength(length int) CommitMessageLinterOption {
+	return func(cml *CommitMessageLinter) {
+		cml.BodyLineLength = length
+	}
+}
+
+// WithSubjectLineLength allows setting the maximum length of a body line
+func WithSubjectLineLength(length int) CommitMessageLinterOption {
+	return func(cml *CommitMessageLinter) {
+		cml.SubjectLineLength = length
+	}
+}
+
 // NewCommitMessageLinter creates a new linter
-func NewCommitMessageLinter(msg string) (*CommitMessageLinter, error) {
-	return &CommitMessageLinter{message: strings.TrimSpace(msg), logger: log.New(os.Stdout, "[cml] ", log.LstdFlags|log.LUTC)}, nil
+func NewCommitMessageLinter(msg string, options ...CommitMessageLinterOption) (*CommitMessageLinter, error) {
+	cml := &CommitMessageLinter{message: strings.TrimSpace(msg), logger: log.New(os.Stdout, "[cml] ", log.LstdFlags|log.LUTC)}
+	for i := range options {
+		options[i](cml)
+	}
+	return cml, nil
 }
 
 // Lint runs the linter
@@ -59,6 +83,10 @@ func (cml *CommitMessageLinter) Lint() error {
 	}
 
 	hasToStartWithCoAuthoredBy := false
+	maxLineLength := 72
+	if cml.BodyLineLength > 0 {
+		maxLineLength = cml.BodyLineLength
+	}
 	for _, s := range lines[2:] {
 		if "" == s && hasToStartWithCoAuthoredBy {
 			return ErrNoLineAfterCoAuthored
@@ -76,7 +104,7 @@ func (cml *CommitMessageLinter) Lint() error {
 			hasToStartWithCoAuthoredBy = true
 			continue
 		}
-		if len(s) > 72 {
+		if len(s) > maxLineLength {
 			return ErrBodyLineTooLong
 		}
 	}
@@ -94,9 +122,13 @@ func (cml *CommitMessageLinter) subjectLine(line string) error {
 	}
 	matches := subjectRegex.FindStringSubmatch(line)
 	groupNames := subjectRegex.SubexpNames()
+	maxLineLength := 50
+	if cml.SubjectLineLength > 0 {
+		maxLineLength = cml.SubjectLineLength
+	}
 	for i, match := range matches {
 		if groupNames[i] == "message" {
-			if len(match) > 50 {
+			if len(match) > maxLineLength {
 				return ErrSubjectLineTooLong
 			}
 		}
