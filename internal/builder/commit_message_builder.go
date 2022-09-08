@@ -1,9 +1,12 @@
 package builder
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"github.com/manifoldco/promptui"
+	"github.com/sascha-andres/gitc/internal"
+	"log"
 	"regexp"
 	"strings"
 )
@@ -44,11 +47,29 @@ type (
 		BodyLineLength int
 		// SubjectLineLength restricts the length of the subject line
 		SubjectLineLength int
+		// PrefillScopeRegex is a regex that, when set, is used to extract the issue from the current branch
+		PrefillScopeRegex string
+		// IssuePrefix is prefixed to a detected issue
+		IssuePrefix string
 	}
 
 	// CommitMessageBuilderOption can be used to set options on commit message builder
 	CommitMessageBuilderOption func(cmb *CommitMessageBuilder)
 )
+
+// WithPrefillScopeRegex sets the regex for matching issue based on branch
+func WithPrefillScopeRegex(regularExpression string) CommitMessageBuilderOption {
+	return func(cmb *CommitMessageBuilder) {
+		cmb.PrefillScopeRegex = regularExpression
+	}
+}
+
+// WithIssuePrefix sets a prefix that is applied when an issue is detected
+func WithIssuePrefix(prefix string) CommitMessageBuilderOption {
+	return func(cmb *CommitMessageBuilder) {
+		cmb.IssuePrefix = prefix
+	}
+}
 
 // WithBodyLineLength allows setting the maximum length of a body line
 func WithBodyLineLength(length int) CommitMessageBuilderOption {
@@ -81,7 +102,40 @@ func (cmb *CommitMessageBuilder) Build() error {
 	}
 	cmb.Type = strings.TrimSpace(result)
 
-	result, err = promptText("Issue (scope)", nil)
+	scopeDefault := ""
+	if cmb.PrefillScopeRegex != "" {
+		r, err := regexp.Compile(cmb.PrefillScopeRegex)
+		if err != nil {
+			return fmt.Errorf("could not parse regex for scope prefill: %w", err)
+		}
+
+		var branchBuffer bytes.Buffer
+		// TODO(#14) print on verbose
+		//writer := io.MultiWriter(os.Stdout, &branchBuffer)
+		//_, err = internal.Git(writer, "branch", "--show-current")
+		_, err = internal.Git(&branchBuffer, "branch", "--show-current")
+		if err != nil {
+			return fmt.Errorf("could not read current branch: %w", err)
+		}
+		branchText := branchBuffer.Bytes()
+		if r.Match(branchText) {
+			match := r.FindSubmatch(branchText)
+			paramsMap := make(map[string]string)
+			for i, name := range r.SubexpNames() {
+				if i > 0 && i <= len(match) {
+					paramsMap[name] = string(match[i])
+				}
+			}
+			if val, ok := paramsMap["scope"]; ok {
+				scopeDefault = fmt.Sprintf("%s%s", cmb.IssuePrefix, val)
+			} else {
+				// TODO(#14) print only on verbose
+				log.Print("regular expression does not match")
+			}
+		}
+	}
+
+	result, err = promptText("Issue (scope)", scopeDefault, nil)
 	if err != nil {
 		return err
 	}
@@ -91,7 +145,7 @@ func (cmb *CommitMessageBuilder) Build() error {
 	if cmb.BodyLineLength != 0 {
 		maxLineLength = cmb.SubjectLineLength
 	}
-	result, err = promptText("Message", func(input string) error {
+	result, err = promptText("Message", "", func(input string) error {
 		if len(input) > maxLineLength {
 			return errors.New(fmt.Sprintf("message must not be longer than %d characters", maxLineLength))
 		}
@@ -111,7 +165,7 @@ func (cmb *CommitMessageBuilder) Build() error {
 		maxLineLength = cmb.BodyLineLength
 	}
 	for {
-		result, err = promptText("Body, empty to end (repeated)", func(input string) error {
+		result, err = promptText("Body, empty to end (repeated)", "", func(input string) error {
 			if len(input) <= maxLineLength {
 				return nil
 			}
@@ -132,7 +186,7 @@ func (cmb *CommitMessageBuilder) Build() error {
 
 	result = "-"
 	for {
-		result, err = promptText("Co-Authored-By, empty to end (repeated)", func(input string) error {
+		result, err = promptText("Co-Authored-By, empty to end (repeated)", "", func(input string) error {
 			if len(input) == 0 {
 				return nil
 			}
@@ -168,9 +222,10 @@ func promptSelect(label string, items []string) (string, error) {
 }
 
 // promptText runs a textual prompt
-func promptText(label string, val func(string) error) (string, error) {
+func promptText(label, defaultValue string, val func(string) error) (string, error) {
 	prompt := promptui.Prompt{
-		Label: label,
+		Label:   label,
+		Default: defaultValue,
 	}
 	if nil != val {
 		prompt.Validate = val

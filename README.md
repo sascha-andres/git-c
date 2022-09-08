@@ -15,6 +15,14 @@ Parameters:
     -verbose: print more information
     -subject-line-length: characters allowed for subject line
     -body-line-length: characters allowed for a body line
+    -prefill-scope-regex: provide regex to parse scope from branch
+    -issue-prefix: prefix detected scope with this value
+
+### Prefill scope regex
+
+It is expected to have a named group scope. Example:
+
+    ^(?P<scope>[0-9]+)
 
 ### Environment variables
 

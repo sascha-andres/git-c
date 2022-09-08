@@ -3,21 +3,19 @@ package main
 import (
 	"fmt"
 	"github.com/sascha-andres/flag"
+	"github.com/sascha-andres/gitc/internal"
 	"github.com/sascha-andres/gitc/internal/builder"
 	"github.com/sascha-andres/gitc/internal/linter"
 	"log"
 	"os"
-	"os/exec"
 	"path"
 	"strings"
-	"syscall"
 )
 
 var (
-	help, add, printCommitMessage, push, verbose bool
-	subjectLineLength, bodyLineLength            int
-	commitMessageFile                            string
-	gitExecutable                                string
+	help, add, printCommitMessage, push, verbose      bool
+	subjectLineLength, bodyLineLength                 int
+	commitMessageFile, prefillScopeRegex, issuePrefix string
 )
 
 // main you know
@@ -76,7 +74,11 @@ func lintCommitMessage(file string) {
 
 // buildCommitMessage is used to build a commit message
 func buildCommitMessage() error {
-	cmb, err := builder.NewCommitMessageBuilder(builder.WithBodyLineLength(bodyLineLength), builder.WithSubjectLineLength(subjectLineLength))
+	cmb, err := builder.NewCommitMessageBuilder(
+		builder.WithBodyLineLength(bodyLineLength),
+		builder.WithSubjectLineLength(subjectLineLength),
+		builder.WithIssuePrefix(issuePrefix),
+		builder.WithPrefillScopeRegex(prefillScopeRegex))
 	if err != nil {
 		return fmt.Errorf("error creating builder: %w", err)
 	}
@@ -103,7 +105,7 @@ func buildCommitMessage() error {
 		if verbose {
 			log.Print("stage files")
 		}
-		_, err = Git("add", "--all", ":/")
+		_, err = internal.Git(os.Stdout, "add", "--all", ":/")
 		if err != nil {
 			return fmt.Errorf("could not add all changes: %s", err)
 		}
@@ -111,7 +113,7 @@ func buildCommitMessage() error {
 	if verbose {
 		log.Print("commit")
 	}
-	_, err = Git("commit", "-m", msg)
+	_, err = internal.Git(os.Stdout, "commit", "-m", msg)
 	if err != nil {
 		return fmt.Errorf("could not commit: %s", err)
 	}
@@ -119,11 +121,12 @@ func buildCommitMessage() error {
 		if verbose {
 			log.Print("push")
 		}
-		_, err = Git("push")
+		_, err = internal.Git(os.Stdout, "push")
 		if err != nil {
 			return fmt.Errorf("could not push changes: %s", err)
 		}
 	}
+
 	return nil
 }
 
@@ -132,11 +135,6 @@ func init() {
 	log.SetPrefix("[git-c] ")
 	log.SetFlags(log.LstdFlags | log.LUTC)
 
-	var err error
-	gitExecutable, err = exec.LookPath("git")
-	if err != nil {
-		log.Fatalf("could not locate git: '%#v'", err)
-	}
 	flag.SetEnvPrefix("GIT_C")
 	flag.BoolVar(&help, "help", false, "show help")
 	flag.BoolVar(&verbose, "verbose", false, "print more information on execution")
@@ -146,36 +144,6 @@ func init() {
 	flag.StringVar(&commitMessageFile, "lint", "", "print generated commit message")
 	flag.IntVar(&subjectLineLength, "subject-line-length", 50, "max length of subject line")
 	flag.IntVar(&bodyLineLength, "body-line-length", 72, "max length of a body line")
-}
-
-// Git calls the system git in the project directory with specified arguments
-func Git(args ...string) (int, error) {
-	command := exec.Command(gitExecutable, args...)
-	command.Stdout = os.Stdout
-	command.Stdin = os.Stdin
-	command.Stderr = os.Stderr
-	return StartAndWait(command)
-}
-
-// StartAndWait calls the command and returns the result
-func StartAndWait(command *exec.Cmd) (int, error) {
-	var err error
-	if err = command.Start(); err != nil {
-		return -1, fmt.Errorf("could not start command: %w", err)
-	}
-	err = command.Wait()
-	if err == nil {
-		return 0, nil
-	}
-	if exitError, ok := err.(*exec.ExitError); ok {
-		if err.(*exec.ExitError).Stderr == nil {
-			return 0, nil
-		}
-		if status, ok := exitError.Sys().(syscall.WaitStatus); ok {
-			return status.ExitStatus(), fmt.Errorf("error waiting for command: %w", err)
-		}
-	} else {
-		return -1, fmt.Errorf("error waiting for command: %w", err)
-	}
-	return 0, nil
+	flag.StringVar(&prefillScopeRegex, "prefill-scope-regex", "", "try to extract scope from branch name")
+	flag.StringVar(&issuePrefix, "issue-prefix", "", "prefix detected scope with this value")
 }
