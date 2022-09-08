@@ -20,12 +20,16 @@ Parameters:
 
 ### Prefill scope regex
 
-It is expected to have a named group scope. Example:
+Expected to have a named group scope. Example:
 
     ^(?P<scope>[0-9]+)
 
+Another example that fits most Jira projects:
+
+    ^(?P<scope>[a-zA-Z0-9]+-[0-9]+)
+
 ### Environment variables
 
-Each parameter can be set using environment variables. An environment variable is set using the prefix `GIT_C_` and the uppercase flag name. That is for help: `GIT_C_HELP`
+Each parameter can be provided using environment variables. Set an environment variable using the prefix `GIT_C_` and the uppercase flag name. That is for help: `GIT_C_HELP`
 
 For boolean flags the value must be `true`
