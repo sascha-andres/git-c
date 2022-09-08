@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"github.com/manifoldco/promptui"
 	"github.com/sascha-andres/gitc/internal"
+	"io"
 	"log"
+	"os"
 	"regexp"
 	"strings"
 )
@@ -27,7 +29,7 @@ var (
 )
 
 const (
-	CoAuthoredByPrefix = "Co-authored-by"
+	CoAuthoredByPrefix = "Co-Authored-By"
 )
 
 type (
@@ -51,11 +53,20 @@ type (
 		PrefillScopeRegex string
 		// IssuePrefix is prefixed to a detected issue
 		IssuePrefix string
+		// verbose if true forces the application to print more information
+		verbose bool
 	}
 
 	// CommitMessageBuilderOption can be used to set options on commit message builder
 	CommitMessageBuilderOption func(cmb *CommitMessageBuilder)
 )
+
+// WithVerbose turns verbosity on
+func WithVerbose() CommitMessageBuilderOption {
+	return func(cmb *CommitMessageBuilder) {
+		cmb.verbose = true
+	}
+}
 
 // WithPrefillScopeRegex sets the regex for matching issue based on branch
 func WithPrefillScopeRegex(regularExpression string) CommitMessageBuilderOption {
@@ -110,10 +121,12 @@ func (cmb *CommitMessageBuilder) Build() error {
 		}
 
 		var branchBuffer bytes.Buffer
-		// TODO(#14) print on verbose
-		//writer := io.MultiWriter(os.Stdout, &branchBuffer)
-		//_, err = internal.Git(writer, "branch", "--show-current")
-		_, err = internal.Git(&branchBuffer, "branch", "--show-current")
+		if cmb.verbose {
+			writer := io.MultiWriter(os.Stdout, &branchBuffer)
+			_, err = internal.Git(writer, "branch", "--show-current")
+		} else {
+			_, err = internal.Git(&branchBuffer, "branch", "--show-current")
+		}
 		if err != nil {
 			return fmt.Errorf("could not read current branch: %w", err)
 		}
@@ -129,8 +142,9 @@ func (cmb *CommitMessageBuilder) Build() error {
 			if val, ok := paramsMap["scope"]; ok {
 				scopeDefault = fmt.Sprintf("%s%s", cmb.IssuePrefix, val)
 			} else {
-				// TODO(#14) print only on verbose
-				log.Print("regular expression does not match")
+				if cmb.verbose {
+					log.Print("regular expression does not match")
+				}
 			}
 		}
 	}

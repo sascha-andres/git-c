@@ -74,11 +74,15 @@ func lintCommitMessage(file string) {
 
 // buildCommitMessage is used to build a commit message
 func buildCommitMessage() error {
-	cmb, err := builder.NewCommitMessageBuilder(
-		builder.WithBodyLineLength(bodyLineLength),
-		builder.WithSubjectLineLength(subjectLineLength),
-		builder.WithIssuePrefix(issuePrefix),
-		builder.WithPrefillScopeRegex(prefillScopeRegex))
+	var opts []builder.CommitMessageBuilderOption
+	opts = append(opts, builder.WithBodyLineLength(bodyLineLength))
+	opts = append(opts, builder.WithSubjectLineLength(subjectLineLength))
+	opts = append(opts, builder.WithIssuePrefix(issuePrefix))
+	opts = append(opts, builder.WithPrefillScopeRegex(prefillScopeRegex))
+	if verbose {
+		opts = append(opts, builder.WithVerbose())
+	}
+	cmb, err := builder.NewCommitMessageBuilder(opts...)
 	if err != nil {
 		return fmt.Errorf("error creating builder: %w", err)
 	}
