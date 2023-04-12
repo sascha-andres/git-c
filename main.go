@@ -2,20 +2,21 @@ package main
 
 import (
 	"fmt"
-	"github.com/sascha-andres/flag"
-	"github.com/sascha-andres/gitc/internal"
-	"github.com/sascha-andres/gitc/internal/builder"
-	"github.com/sascha-andres/gitc/internal/linter"
 	"log"
 	"os"
 	"path"
 	"strings"
+
+	"github.com/sascha-andres/flag"
+	"github.com/sascha-andres/gitc/internal"
+	"github.com/sascha-andres/gitc/internal/builder"
+	"github.com/sascha-andres/gitc/internal/linter"
 )
 
 var (
-	help, add, printCommitMessage, push, verbose      bool
-	subjectLineLength, bodyLineLength                 int
-	commitMessageFile, prefillScopeRegex, issuePrefix string
+	help, add, printCommitMessage, push, verbose, patch bool
+	subjectLineLength, bodyLineLength                   int
+	commitMessageFile, prefillScopeRegex, issuePrefix   string
 )
 
 // main you know
@@ -117,7 +118,11 @@ func buildCommitMessage() error {
 	if verbose {
 		log.Print("commit")
 	}
-	_, err = internal.Git(os.Stdout, "commit", "-m", msg)
+	if patch {
+		_, err = internal.Git(os.Stdout, "commit", "-p", "-m", msg)
+	} else {
+		_, err = internal.Git(os.Stdout, "commit", "-m", msg)
+	}
 	if err != nil {
 		return fmt.Errorf("could not commit: %s", err)
 	}
@@ -144,6 +149,7 @@ func init() {
 	flag.BoolVar(&verbose, "verbose", false, "print more information on execution")
 	flag.BoolVar(&add, "add", false, "add all changed files before committing")
 	flag.BoolVar(&push, "push", false, "automatically push to default remote")
+	flag.BoolVar(&patch, "patch", false, "use patch mode (git commit -p)")
 	flag.BoolVar(&printCommitMessage, "print", false, "print generated commit message")
 	flag.StringVar(&commitMessageFile, "lint", "", "print generated commit message")
 	flag.IntVar(&subjectLineLength, "subject-line-length", 50, "max length of subject line")
