@@ -4,13 +4,12 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/manifoldco/promptui"
-	"github.com/sascha-andres/gitc/internal"
-	"io"
 	"log"
-	"os"
 	"regexp"
 	"strings"
+
+	"github.com/manifoldco/promptui"
+	"github.com/sascha-andres/gitc/internal"
 )
 
 var (
@@ -121,11 +120,9 @@ func (cmb *CommitMessageBuilder) Build() error {
 		}
 
 		var branchBuffer bytes.Buffer
+		_, err = internal.Git(&branchBuffer, "branch", "--show-current")
 		if cmb.verbose {
-			writer := io.MultiWriter(os.Stdout, &branchBuffer)
-			_, err = internal.Git(writer, "branch", "--show-current")
-		} else {
-			_, err = internal.Git(&branchBuffer, "branch", "--show-current")
+			log.Printf("found branch: %q", strings.TrimSpace(branchBuffer.String()))
 		}
 		if err != nil {
 			return fmt.Errorf("could not read current branch: %w", err)
