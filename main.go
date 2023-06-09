@@ -7,10 +7,10 @@ import (
 	"path"
 	"strings"
 
-	"github.com/sascha-andres/flag"
 	"github.com/sascha-andres/gitc/internal"
 	"github.com/sascha-andres/gitc/internal/builder"
 	"github.com/sascha-andres/gitc/internal/linter"
+	"github.com/sascha-andres/reuse/flag"
 )
 
 var (
