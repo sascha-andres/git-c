@@ -1,10 +1,10 @@
 module github.com/sascha-andres/gitc
 
-go 1.18
+go 1.20
 
 require (
 	github.com/manifoldco/promptui v0.9.0
-	github.com/sascha-andres/flag v0.1.0
+	github.com/sascha-andres/flag v0.3.2
 )
 
 require (
