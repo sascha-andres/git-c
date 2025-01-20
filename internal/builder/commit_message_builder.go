@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/manifoldco/promptui"
+
 	"github.com/sascha-andres/gitc/internal"
 )
 
@@ -34,7 +35,7 @@ const (
 type (
 	// CommitMessageBuilder is used to create a conventional git commit message
 	CommitMessageBuilder struct {
-		// Type of a message like feature, bugfix, etc
+		// Type of message like feature, bugfix, etc.
 		Type string
 		// Issue if any
 		Issue string
