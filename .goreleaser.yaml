@@ -40,6 +40,10 @@ homebrew_casks:
     description: "Loosely inspired by cz-cli, helps write conventional commit messages"
     binaries:
       - git-c
+    hooks:
+      post:
+        install: |
+          system "codesign", "--force", "-s", "-", "#{bin}/git-c"
 
 snapshot:
   version_template: "{{ incpatch .Version }}-next"

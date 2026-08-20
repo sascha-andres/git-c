@@ -2,6 +2,12 @@
 
 Loosely inspired by https://github.com/commitizen/cz-cli
 
+## Installation
+
+macOS and Linux (amd64/arm64), via Homebrew:
+
+    brew install --cask sascha-andres/tap/git-c
+
 ## Usage
 
 copy compiled binary as git-c in your path. Instead of calling `git commit ...` call git c
